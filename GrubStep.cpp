@@ -1,5 +1,5 @@
 #include "GrubStep.h"
-#include "GrubSep_digitalWriteFast.h"
+#include <FlexiTimer2.h>
 
 template<typename Type>
 Type sign(Type value) {
@@ -14,6 +14,17 @@ Type sign(Type value) {
 
 #define MAX(A, B) (A > B ? A : B)
 #define MIN(A, B) (A < B ? A : B)
+
+//---------
+void timerCallback()
+{
+	auto instance = GrubStep::getFirst();
+	
+	while(instance) {
+		instance->tick();
+		instance = instance->getNext();
+	}
+}
 
 //---------
 GrubStep::GrubStep() {
@@ -63,6 +74,7 @@ void GrubStep::update() {
 
 	if(targetPosition == currentPosition) {
 		Serial.println("Stop");
+		this->currentVelocity = 0.0f;
 		//stopped at destination, just be still
 	}
 	else if (this->currentVelocity == 0.0f || (direction != sign(currentVelocity))) {
@@ -105,16 +117,16 @@ void GrubStep::update() {
 	//calculate movement state
 	{
 		float stepsPerSecond = this->getVelocitySteps();
-		// Serial.print("Steps per second : ");
-		// Serial.println(stepsPerSecond);
+		Serial.print("Steps per second : ");
+		Serial.println(stepsPerSecond);
 
 		float stepInterval = 1.0f / stepsPerSecond;
-		float ticksPerStep = GRUBSTEP_TICKS_PER_SECOND * stepInterval;
-		// Serial.print("Ticks per step : ");
-		// Serial.println(ticksPerStep);
+		float ticksPerStep = 16384.0f * stepInterval;
+		Serial.print("Ticks per step : ");
+		Serial.println(ticksPerStep);
 
 		if(stepsPerSecond > 0) {
-			this->ticksPerStep = 100;//HACK	floor(ticksPerStep);
+			this->ticksPerStep = floor(ticksPerStep);
 		}
 	}
 	
@@ -210,40 +222,10 @@ void GrubStep::initialiseTimer() const {
 	}
 
 	{
-		// initialize timer1 
-		noInterrupts();           // disable all interrupts
-	
-		//clear timer registers
-		TCCR1A = 0;
-		TCCR1B = 0;
-	
-		//enable CTC mode (compare)
-		TCCR1B |= (1 << WGM12);
-	
-		// enable timer1 compare interrupt
-		TIMSK1 |= (1 << OCIE1A);  
-
-		//TCCR1B |= (1 << CS11);    // 8 prescaler 
-		TCCR1B |= (1 << CS11) | (1 << CS10);    // 64 prescaler 
-		//TCCR1B |= (1 << CS12);    // 256 prescaler 
-		//TCCR1B |= (1 << CS12) | (1 << CS10);    // 1024 prescaler 
-
-		OCR1A = 2 - 1; // takes one cycle for operation (?)
-
-		interrupts();             // enable all interrupts
+		FlexiTimer2::set(1, 1.0f / 32768.0f, timerCallback);
+		FlexiTimer2::start();
 	}
 
 	timerInitialised = true;
 }
 
-//---------
-ISR(TIMER1_COMPA_vect)          // timer compare interrupt service routine
-{
-	auto instance = GrubStep::getFirst();
-	instance->tick();
-	return; //HACK
-	while(instance) {
-		instance->tick();
-		instance = instance->getNext();
-	}
-}

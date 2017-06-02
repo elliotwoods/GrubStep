@@ -6,10 +6,6 @@
 
 // Positions are generally in 'rotations' except where explicitly marked 'step'
 
-#define GRUBSTEP_MICROS_PER_TICK 1000000 * 64 / 16000000
-#define GRUBSTEP_MICROS_PER_TICK_CYCLE (GRUBSTEP_MICROS_PER_TICK * 2)
-#define GRUBSTEP_TICKS_PER_SECOND (1000000.0f / float(GRUBSTEP_MICROS_PER_TICK_CYCLE))
-
 class GrubStep {
 public:
 	struct Settings {
@@ -52,6 +48,7 @@ protected:
 	unsigned long ticksSinceLastStep = 0;
 	unsigned long ticksPerStep = 10000;
 
+	volatile bool movementEnabled = false;
 	volatile bool stepDirection = true;
 	volatile long long currentPositionSteps = 0;
 	volatile long long targetPositionSteps = 0;
