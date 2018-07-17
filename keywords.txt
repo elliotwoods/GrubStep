@@ -1,1 +1,1 @@
-GrubStep KEYWORD1
+GrubStep	KEYWORD1
